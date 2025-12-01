@@ -166,6 +166,14 @@ const onSaveHandler = async (markdown: string, sanitizedHtml: string) => {
   isSubmitting.value = true;
   try {
     await processTagsAndCategories();
+    if (!form.title || form.title.trim() === "") {
+      ElNotification({
+        title: "提交错误",
+        message: "文章标题不能为空，请输入标题后再保存。",
+        type: "error"
+      });
+      return;
+    }
     const dataToSubmit = {
       ...form,
       content_md: markdown,

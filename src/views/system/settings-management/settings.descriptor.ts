@@ -1382,6 +1382,24 @@ const commentDescriptors: SettingDescriptor[] = [
     type: "string"
   },
   {
+    frontendPath: "frontDesk.comment.aiDetectEnable",
+    backendKey: constant.KeyCommentAIDetectEnable,
+    defaultValue: false,
+    type: "boolean"
+  },
+  {
+    frontendPath: "frontDesk.comment.aiDetectAPIURL",
+    backendKey: constant.KeyCommentAIDetectAPIURL,
+    defaultValue: "https://v1.nsuuu.com/api/AiDetect",
+    type: "string"
+  },
+  {
+    frontendPath: "frontDesk.comment.aiDetectAPIKey",
+    backendKey: constant.KeyCommentAIDetectAPIKey,
+    defaultValue: "",
+    type: "string"
+  },
+  {
     frontendPath: "frontDesk.comment.qqAPIURL",
     backendKey: constant.KeyCommentQQAPIURL,
     defaultValue: "https://v1.nsuuu.com/api/qqname",

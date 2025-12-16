@@ -200,6 +200,49 @@ const formatJson = () => {
       />
     </el-form-item>
 
+    <el-divider content-position="left">AI敏感词检测</el-divider>
+    <el-alert type="info" :closable="false" style="margin-bottom: 16px">
+      <template #title>
+        <div style="font-size: 14px; line-height: 1.6">
+          基于AI的智能文本内容检测，支持中英文混合检测、智能变体识别（同音字、谐音字、形近字等）。请前往
+          <a
+            href="https://api.nsuuu.com/"
+            target="_blank"
+            style="color: var(--el-color-primary)"
+            >鸭梨API (api.nsuuu.com)</a
+          >
+          了解更多。检测到违规内容的评论将进入待审状态。
+        </div>
+      </template>
+    </el-alert>
+    <el-row :gutter="20">
+      <el-col :span="8">
+        <el-form-item label="启用AI敏感词检测">
+          <el-switch v-model="model.aiDetectEnable" />
+        </el-form-item>
+      </el-col>
+      <el-col :span="8">
+        <el-form-item label="AI检测API地址">
+          <el-input
+            v-model="model.aiDetectAPIURL"
+            :disabled="!model.aiDetectEnable"
+            placeholder="https://v1.nsuuu.com/api/AiDetect"
+          />
+        </el-form-item>
+      </el-col>
+      <el-col :span="8">
+        <el-form-item label="AI检测API密钥 (如需要)">
+          <el-input
+            v-model="model.aiDetectAPIKey"
+            type="password"
+            show-password
+            :disabled="!model.aiDetectEnable"
+            placeholder="可选，部分API需要密钥"
+          />
+        </el-form-item>
+      </el-col>
+    </el-row>
+
     <el-divider content-position="left">QQ信息查询配置</el-divider>
     <el-alert type="info" :closable="false" style="margin-bottom: 16px">
       <template #title>

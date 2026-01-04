@@ -302,14 +302,24 @@
         </div>
         <div class="bar-right">
           <template v-for="link in footerConfig.bar.linkList" :key="link.text">
+            <!-- 后端渲染的页面（如 .xml, .json 等）使用原生跳转，不加 target="_blank" -->
             <a
-              v-if="isInternalLink(link.link)"
+              v-if="isBackendRenderedPath(link.link)"
+              class="bar-link"
+              :href="link.link"
+            >
+              {{ link.text }}
+            </a>
+            <!-- 内部链接使用 Vue Router 跳转 -->
+            <a
+              v-else-if="isInternalLink(link.link)"
               class="bar-link"
               :href="link.link"
               @click="handleInternalLinkClick($event, link.link)"
             >
               {{ link.text }}
             </a>
+            <!-- 外部链接在新标签页打开 -->
             <a
               v-else
               class="bar-link"

@@ -120,6 +120,16 @@
                 <i :class="['anzhiyufont', child.icon]" />
                 <span>{{ child.name }}</span>
               </a>
+              <!-- 后端渲染的页面（如 .xml, .json 等）使用原生跳转 -->
+              <a
+                v-else-if="isBackendRenderedPath(child.href)"
+                :href="child.href"
+                class="menu-group-item"
+                @click="handleInternalLinkClick"
+              >
+                <i :class="['anzhiyufont', child.icon]" />
+                <span>{{ child.name }}</span>
+              </a>
               <router-link
                 v-else
                 :to="child.href"
@@ -162,6 +172,16 @@
               target="_blank"
               rel="noopener noreferrer"
               class="menu-group-item"
+            >
+              <i :class="['anzhiyufont', menu.icon]" />
+              <span>{{ menu.name }}</span>
+            </a>
+            <!-- 后端渲染的页面（如 .xml, .json 等）使用原生跳转 -->
+            <a
+              v-else-if="isBackendRenderedPath(menu.href)"
+              :href="menu.href"
+              class="menu-group-item"
+              @click="handleInternalLinkClick"
             >
               <i :class="['anzhiyufont', menu.icon]" />
               <span>{{ menu.name }}</span>
@@ -505,6 +525,16 @@ const handleTreasureLinkClick = () => {
 const switchDarkMode = () => {
   const newTheme = dataTheme.value ? "light" : "dark";
   dataThemeChange(newTheme);
+};
+
+// 后端渲染的页面路径（不应使用 Vue Router 跳转）
+const BACKEND_RENDERED_EXTENSIONS = [".xml", ".json", ".txt", ".rss"];
+
+// 判断是否为后端渲染的页面（如 sitemap.xml, atom.xml, rss.xml 等）
+const isBackendRenderedPath = (link: string) => {
+  if (!link) return false;
+  const lowerLink = link.toLowerCase();
+  return BACKEND_RENDERED_EXTENSIONS.some(ext => lowerLink.endsWith(ext));
 };
 
 // 处理内部链接点击，关闭侧边栏

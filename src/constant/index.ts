@@ -379,6 +379,7 @@ const KeyCDNSecretKey: SettingKey = "cdn.secret_key";
 const KeyCDNRegion: SettingKey = "cdn.region";
 const KeyCDNDomain: SettingKey = "cdn.domain";
 const KeyCDNZoneID: SettingKey = "cdn.zone_id";
+const KeyCDNBaseUrl: SettingKey = "cdn.baseUrl";
 
 // --- 相册页面配置 ---
 const KeyAlbumPageBannerBackground: SettingKey = "album.banner.background";
@@ -727,6 +728,7 @@ export const constant = {
   KeyCDNRegion,
   KeyCDNDomain,
   KeyCDNZoneID,
+  KeyCDNBaseUrl,
 
   // --- 相册页面配置 ---
   KeyAlbumPageBannerBackground,

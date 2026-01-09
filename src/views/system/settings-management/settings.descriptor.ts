@@ -725,6 +725,7 @@ const postDescriptors: SettingDescriptor[] = [
     defaultValue: "",
     type: "string"
   },
+  // cdn配置
   {
     frontendPath: "post.cdn.enable",
     backendKey: constant.KeyCDNEnable,
@@ -764,6 +765,12 @@ const postDescriptors: SettingDescriptor[] = [
   {
     frontendPath: "post.cdn.zoneID",
     backendKey: constant.KeyCDNZoneID,
+    defaultValue: "",
+    type: "string"
+  },
+  {
+    frontendPath: "post.cdn.baseUrl",
+    backendKey: constant.KeyCDNBaseUrl,
     defaultValue: "",
     type: "string"
   },

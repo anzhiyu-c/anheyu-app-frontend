@@ -210,6 +210,7 @@ export interface PostSettingsInfo {
     region: string;
     domain: string;
     zoneID: string;
+    baseUrl: string;
   };
   subscribe: {
     enable: boolean;

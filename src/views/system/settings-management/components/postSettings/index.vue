@@ -633,117 +633,159 @@
         <el-option label="腾讯云 CDN" value="tencent" />
         <el-option label="EdgeOne" value="edgeone" />
         <el-option label="阿里云 ESA" value="aliyun-esa" />
+        <el-option label="CDNFLY" value="cdnfly" />
       </el-select>
       <div class="form-item-help">
-        选择您使用的 CDN 服务提供商。目前支持腾讯云 CDN、EdgeOne 和阿里云 ESA。
+        选择您使用的 CDN 服务提供商。目前支持腾讯云 CDN、EdgeOne 、阿里云 ESA 和
+        CDNFLY。
       </div>
     </div>
   </el-form-item>
 
-  <el-form-item
-    :label="
-      formData.cdn.provider === 'aliyun-esa'
-        ? 'AccessKey ID'
-        : '腾讯云 API 密钥 ID'
-    "
-  >
-    <el-input
-      v-model="formData.cdn.secretID"
-      :placeholder="
+  <div v-if="formData.cdn.provider !== 'cdnfly'">
+    <el-form-item
+      :label="
         formData.cdn.provider === 'aliyun-esa'
-          ? '请输入 AccessKey ID'
-          : '请输入 SecretId'
+          ? 'AccessKey ID'
+          : '腾讯云 API 密钥 ID'
       "
-      show-password
-    />
-    <div class="form-item-help">
-      <template v-if="formData.cdn.provider === 'aliyun-esa'">
-        阿里云 API 密钥的 AccessKey ID。<br />
-        <strong> 可在阿里云控制台的"AccessKey 管理"中创建和获取。 </strong>
-      </template>
-      <template v-else>
-        腾讯云 API 密钥的 SecretId。<br />
-        <strong>
-          可在腾讯云控制台的"访问管理 > 访问密钥 > API密钥管理"中获取。
-        </strong>
-      </template>
-    </div>
-  </el-form-item>
+    >
+      <el-input
+        v-model="formData.cdn.secretID"
+        :placeholder="
+          formData.cdn.provider === 'aliyun-esa'
+            ? '请输入 AccessKey ID'
+            : '请输入 SecretId'
+        "
+        show-password
+      />
+      <div class="form-item-help">
+        <template v-if="formData.cdn.provider === 'aliyun-esa'">
+          阿里云 API 密钥的 AccessKey ID。<br />
+          <strong> 可在阿里云控制台的"AccessKey 管理"中创建和获取。 </strong>
+        </template>
+        <template v-else>
+          腾讯云 API 密钥的 SecretId。<br />
+          <strong>
+            可在腾讯云控制台的"访问管理 > 访问密钥 > API密钥管理"中获取。
+          </strong>
+        </template>
+      </div>
+    </el-form-item>
 
-  <el-form-item
-    :label="
-      formData.cdn.provider === 'aliyun-esa'
-        ? 'AccessKey Secret'
-        : '腾讯云 API 密钥 Key'
-    "
-  >
-    <el-input
-      v-model="formData.cdn.secretKey"
-      :placeholder="
+    <el-form-item
+      :label="
         formData.cdn.provider === 'aliyun-esa'
-          ? '请输入 AccessKey Secret'
-          : '请输入 SecretKey'
+          ? 'AccessKey Secret'
+          : '腾讯云 API 密钥 Key'
       "
-      show-password
-    />
-    <div class="form-item-help">
-      <template v-if="formData.cdn.provider === 'aliyun-esa'">
-        阿里云 API 密钥的 AccessKey Secret。<br />
-      </template>
-      <template v-else> 腾讯云 API 密钥的 SecretKey。<br /> </template>
-      <strong>请妥善保管，不要泄露给他人。</strong>
-    </div>
-  </el-form-item>
+    >
+      <el-input
+        v-model="formData.cdn.secretKey"
+        :placeholder="
+          formData.cdn.provider === 'aliyun-esa'
+            ? '请输入 AccessKey Secret'
+            : '请输入 SecretKey'
+        "
+        show-password
+      />
+      <div class="form-item-help">
+        <template v-if="formData.cdn.provider === 'aliyun-esa'">
+          阿里云 API 密钥的 AccessKey Secret。<br />
+        </template>
+        <template v-else> 腾讯云 API 密钥的 SecretKey。<br /> </template>
+        <strong>请妥善保管，不要泄露给他人。</strong>
+      </div>
+    </el-form-item>
 
-  <el-form-item
-    v-if="formData.cdn.provider !== 'aliyun-esa'"
-    label="腾讯云地域"
-  >
-    <el-input v-model="formData.cdn.region" placeholder="例如：ap-beijing" />
-    <div class="form-item-help">
-      腾讯云服务地域标识。<br />
-      常用地域：ap-beijing（北京）、ap-shanghai（上海）、ap-guangzhou（广州）、ap-singapore（新加坡）。<br />
-      <strong>EdgeOne 默认使用 ap-singapore。</strong>
-    </div>
-  </el-form-item>
+    <el-form-item
+      v-if="formData.cdn.provider !== 'aliyun-esa'"
+      label="腾讯云地域"
+    >
+      <el-input v-model="formData.cdn.region" placeholder="例如：ap-beijing" />
+      <div class="form-item-help">
+        腾讯云服务地域标识。<br />
+        常用地域：ap-beijing（北京）、ap-shanghai（上海）、ap-guangzhou（广州）、ap-singapore（新加坡）。<br />
+        <strong>EdgeOne 默认使用 ap-singapore。</strong>
+      </div>
+    </el-form-item>
 
-  <el-form-item v-if="formData.cdn.provider === 'tencent'" label="CDN 加速域名">
-    <el-input
-      v-model="formData.cdn.domain"
-      placeholder="例如：blog.example.com"
-    />
-    <div class="form-item-help">
-      腾讯云 CDN 的加速域名（不含 http:// 或 https://）。<br />
-      <strong>仅腾讯云 CDN 需要配置此项。</strong>
-    </div>
-  </el-form-item>
+    <el-form-item
+      v-if="formData.cdn.provider === 'tencent'"
+      label="CDN 加速域名"
+    >
+      <el-input
+        v-model="formData.cdn.domain"
+        placeholder="例如：blog.example.com"
+      />
+      <div class="form-item-help">
+        腾讯云 CDN 的加速域名（不含 http:// 或 https://）。<br />
+        <strong>仅腾讯云 CDN 需要配置此项。</strong>
+      </div>
+    </el-form-item>
 
-  <el-form-item
-    v-if="formData.cdn.provider === 'edgeone'"
-    label="EdgeOne 站点 ID"
-  >
-    <el-input
-      v-model="formData.cdn.zoneID"
-      placeholder="例如：zone-xxxxxxxxxxxx"
-    />
-    <div class="form-item-help">
-      EdgeOne 站点的 Zone ID。<br />
-      可在 EdgeOne 控制台的"站点列表"中查看。<br />
-      <strong>仅 EdgeOne 需要配置此项。</strong>
-    </div>
-  </el-form-item>
+    <el-form-item
+      v-if="formData.cdn.provider === 'edgeone'"
+      label="EdgeOne 站点 ID"
+    >
+      <el-input
+        v-model="formData.cdn.zoneID"
+        placeholder="例如：zone-xxxxxxxxxxxx"
+      />
+      <div class="form-item-help">
+        EdgeOne 站点的 Zone ID。<br />
+        可在 EdgeOne 控制台的"站点列表"中查看。<br />
+        <strong>仅 EdgeOne 需要配置此项。</strong>
+      </div>
+    </el-form-item>
 
-  <el-form-item
-    v-if="formData.cdn.provider === 'aliyun-esa'"
-    label="阿里云 ESA 站点 ID"
-  >
-    <el-input v-model="formData.cdn.zoneID" placeholder="例如：123456789" />
-    <div class="form-item-help">
-      阿里云 ESA 的站点 ID（Site ID）。<br />
-      可在阿里云 ESA 控制台的"站点管理"中查看。<br />
-      <strong>仅阿里云 ESA 需要配置此项。</strong>
-    </div>
-  </el-form-item>
+    <el-form-item
+      v-if="formData.cdn.provider === 'aliyun-esa'"
+      label="阿里云 ESA 站点 ID"
+    >
+      <el-input v-model="formData.cdn.zoneID" placeholder="例如：123456789" />
+      <div class="form-item-help">
+        阿里云 ESA 的站点 ID（Site ID）。<br />
+        可在阿里云 ESA 控制台的"站点管理"中查看。<br />
+        <strong>仅阿里云 ESA 需要配置此项。</strong>
+      </div>
+    </el-form-item>
+  </div>
+  <div v-else>
+    <el-form-item label="CDNFLY API 地址">
+      <el-input
+        v-model="formData.cdn.baseUrl"
+        placeholder="请输入 CDNFLY API 地址"
+      />
+      <div class="form-item-help">
+        CDNFLY API 地址。<br />
+        填入 CDNFLY 控制面板地址。<br />
+        <strong>不需要v1结尾：https://api.example.com</strong>
+      </div>
+    </el-form-item>
+    <el-form-item label="CDNFLY API 密钥 Key">
+      <el-input
+        v-model="formData.cdn.secretKey"
+        placeholder="请输入 API Key"
+        show-password
+      />
+      <div class="form-item-help">
+        CDNFLY 的密钥 Secret <br />
+        <strong>请妥善保管，不要泄露给他人。</strong>
+      </div>
+    </el-form-item>
+    <el-form-item label="CDNFLY API 密钥 Secret">
+      <el-input
+        v-model="formData.cdn.secretID"
+        placeholder="请输入 API Secret"
+        show-password
+      />
+      <div class="form-item-help">
+        CDNFLY 的密钥<br />
+        <strong>请妥善保管，不要泄露给他人。</strong>
+      </div>
+    </el-form-item>
+  </div>
 </template>
 
 <script setup lang="ts">

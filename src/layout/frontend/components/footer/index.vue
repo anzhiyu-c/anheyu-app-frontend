@@ -173,10 +173,13 @@
       >
         <div v-if="currentStatusImg" class="status-img-row">
           <img
+            ref="statusBadgeRef"
             class="status-badge"
             :src="currentStatusImg"
             :title="currentStatusDesc"
             alt="工作状态"
+            @error="handleStatusImgError"
+            @load="handleStatusImgLoad"
           />
         </div>
         <div class="runtime-info-row">
@@ -493,6 +496,7 @@ const runtimeDays = ref(0);
 const runtimeTime = ref("0 小时 0 分 0 秒");
 const currentStatusImg = ref("");
 const currentStatusDesc = ref("");
+const statusBadgeRef = ref<HTMLImageElement | null>(null);
 let runtimeInterval: number | null = null;
 
 // 判断是否在工作时间（9:00-18:00）
@@ -523,17 +527,52 @@ const calculateRuntime = () => {
     runtimeTime.value = `${hours} 小时 ${minutes} 分 ${seconds} 秒`;
 
     // 更新状态图和描述
+    // 优先使用对应时间段的图片，如果没有配置则回退到另一个时间段的图片
     if (isWorkingHours()) {
-      currentStatusImg.value = footerConfig.value.runtime?.work_img || "";
+      currentStatusImg.value =
+        footerConfig.value.runtime?.work_img ||
+        footerConfig.value.runtime?.offduty_img ||
+        "";
       currentStatusDesc.value =
-        footerConfig.value.runtime?.work_description || "";
+        footerConfig.value.runtime?.work_description ||
+        footerConfig.value.runtime?.offduty_description ||
+        "";
     } else {
-      currentStatusImg.value = footerConfig.value.runtime?.offduty_img || "";
+      currentStatusImg.value =
+        footerConfig.value.runtime?.offduty_img ||
+        footerConfig.value.runtime?.work_img ||
+        "";
       currentStatusDesc.value =
-        footerConfig.value.runtime?.offduty_description || "";
+        footerConfig.value.runtime?.offduty_description ||
+        footerConfig.value.runtime?.work_description ||
+        "";
     }
   } catch (error) {
     console.error("Invalid launch_time format:", error);
+  }
+};
+
+// 处理状态图片加载错误
+const handleStatusImgError = (event: Event) => {
+  const img = event.target as HTMLImageElement;
+  console.error("[Footer Status Badge] 图片加载失败:", {
+    src: img.src,
+    work_img: footerConfig.value?.runtime?.work_img,
+    offduty_img: footerConfig.value?.runtime?.offduty_img,
+    isWorkingHours: isWorkingHours()
+  });
+  // 不隐藏图片，让浏览器自然处理
+  // 如果确实无法加载，浏览器会显示破损图标，但至少用户知道有图片配置
+};
+
+// 处理状态图片加载成功
+const handleStatusImgLoad = () => {
+  // 图片加载成功，确保显示（移除可能存在的隐藏样式）
+  const imgElement = document.querySelector(
+    ".status-badge"
+  ) as HTMLImageElement;
+  if (imgElement && imgElement.style.display === "none") {
+    imgElement.style.display = "";
   }
 };
 

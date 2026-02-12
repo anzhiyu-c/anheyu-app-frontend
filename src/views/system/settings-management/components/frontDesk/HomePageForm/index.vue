@@ -1631,6 +1631,61 @@ const updateFooterBadgesEnable = (newValue: boolean) => {
   }
 }
 
+@mixin category-settings-dark-mode {
+  .category-card {
+    border-color: var(--el-border-color-darker);
+    box-shadow: 0 2px 8px rgb(0 0 0 / 20%);
+
+    &:hover {
+      border-color: var(--anzhiyu-theme);
+      box-shadow: 0 4px 12px rgb(0 0 0 / 28%);
+    }
+
+    .category-card-header {
+      background: var(--anzhiyu-card-bg);
+      border-bottom: 1px solid var(--el-border-color-darker);
+    }
+  }
+
+  .category-settings-container {
+    :deep(.el-input__wrapper) {
+      background-color: var(--anzhiyu-card-bg);
+      box-shadow: 0 0 0 1px var(--el-border-color-darker) inset;
+
+      &:hover {
+        box-shadow: 0 0 0 1px var(--anzhiyu-card-border) inset;
+      }
+
+      &.is-focus {
+        box-shadow: 0 0 0 1px var(--anzhiyu-theme) inset;
+      }
+    }
+
+    :deep(.el-input__inner),
+    :deep(.el-radio__label) {
+      color: var(--anzhiyu-fontcolor);
+    }
+
+    :deep(.el-radio__input .el-radio__inner) {
+      background-color: var(--anzhiyu-card-bg);
+      border-color: var(--el-border-color-darker);
+    }
+
+    :deep(.el-radio__input.is-checked .el-radio__inner) {
+      background-color: var(--anzhiyu-theme);
+      border-color: var(--anzhiyu-theme);
+    }
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  @include category-settings-dark-mode;
+}
+
+html.dark {
+  @include category-settings-dark-mode;
+}
+
 /* 简洁菜单管理器样式 */
 .menu-manager {
   background: var(--anzhiyu-card-bg);

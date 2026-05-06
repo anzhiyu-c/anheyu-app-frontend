@@ -11,6 +11,7 @@ import "./code-highlight.css";
 import { useShallow } from "zustand/shallow";
 import { useSiteConfigStore } from "@/store/site-config-store";
 import { apiClient } from "@/lib/api/client";
+import { useTheme } from "@/hooks/use-theme";
 
 interface ArticleCopyInfo {
   isReprint?: boolean;
@@ -61,6 +62,18 @@ export function PostContent({ content, articleInfo, enableScripts = false }: Pos
   const codeBlockRawConfig = useSiteConfigStore(useShallow(state => state.siteConfig?.post?.code_block));
   const appName = useSiteConfigStore(state => state.siteConfig?.APP_NAME);
   const siteOwnerName = useSiteConfigStore(state => state.siteConfig?.frontDesk?.siteOwner?.name);
+
+  const { isDark } = useTheme();
+  // 异步 mermaid 渲染需读取最新 isDark，避免把 isDark 列入 useCallback 依赖（否则 callback 引用变化会触发主 useEffect 整个重跑）
+  const isDarkRef = useRef(isDark);
+  // 主 useEffect 与主题 useEffect 并发写 mermaidCleanupRef，过期任务以 generation 标记后跳过 init zoom
+  const mermaidGenRef = useRef(0);
+  // 主题 useEffect 首挂时与主渲染 useEffect 会同时触发渲染，用此 ref 跳过首次执行
+  const lastIsDarkRef = useRef<boolean | null>(null);
+
+  useEffect(() => {
+    isDarkRef.current = isDark;
+  }, [isDark]);
 
   // ── 复制版权拦截 ──
   useEffect(() => {
@@ -639,8 +652,14 @@ export function PostContent({ content, articleInfo, enableScripts = false }: Pos
   }, []);
 
   // 渲染 Mermaid 图表：将源码转为 SVG
-  const renderMermaidBlocks = useCallback(async (container: HTMLElement) => {
-    const blocks: { element: Element; code: string }[] = [];
+  // 同时支持首次渲染（源码块）和重新渲染（已渲染的 wrapper，主题切换时使用）
+  // shouldAbort 用于让调用方在主题再次变化等场景下取消过期渲染
+  const renderMermaidBlocks = useCallback(async (
+    container: HTMLElement,
+    shouldAbort?: () => boolean,
+  ) => {
+    // isRendered=true 表示元素已经是渲染过的 wrapper，需要保留 action div 仅替换 SVG
+    const blocks: { element: Element; code: string; isRendered: boolean }[] = [];
     const seen = new WeakSet<Element>();
 
     container.querySelectorAll("div[data-mermaid-code], div.mermaid-block").forEach(div => {
@@ -649,7 +668,7 @@ export function PostContent({ content, articleInfo, enableScripts = false }: Pos
       const code =
         (div as HTMLElement).getAttribute("data-mermaid-code") ||
         (div.querySelector("code.language-mermaid")?.textContent || "");
-      if (code.trim()) blocks.push({ element: div, code });
+      if (code.trim()) blocks.push({ element: div, code, isRendered: false });
     });
 
     container.querySelectorAll("pre").forEach(pre => {
@@ -658,32 +677,56 @@ export function PostContent({ content, articleInfo, enableScripts = false }: Pos
       const codeEl = pre.querySelector("code.language-mermaid");
       if (!codeEl) return;
       if (seen.has(pre)) return;
-      blocks.push({ element: pre, code: codeEl.textContent || "" });
+      blocks.push({ element: pre, code: codeEl.textContent || "", isRendered: false });
+    });
+
+    // 已渲染的 wrapper（主题切换时复用 data-mermaid-code 重新生成 SVG）
+    container.querySelectorAll<HTMLElement>(".md-editor-mermaid[data-mermaid-code]").forEach(wrapper => {
+      if (seen.has(wrapper)) return;
+      seen.add(wrapper);
+      const code = wrapper.getAttribute("data-mermaid-code") || "";
+      if (code.trim()) blocks.push({ element: wrapper, code, isRendered: true });
     });
 
     if (blocks.length === 0) return;
 
     try {
       const { default: mermaid } = await import("mermaid");
+      if (shouldAbort?.()) return;
       mermaid.initialize({
         startOnLoad: false,
         securityLevel: "loose",
-        theme: document.documentElement.classList.contains("dark") ? "dark" : "default",
+        theme: isDarkRef.current ? "dark" : "default",
         flowchart: { useMaxWidth: true, htmlLabels: true },
         sequence: { useMaxWidth: true },
         gantt: { useMaxWidth: true },
       });
 
       for (const block of blocks) {
+        if (shouldAbort?.()) return;
+        if (!block.element.isConnected) continue;
         try {
           const id = `mermaid-${Math.random().toString(36).slice(2, 11)}`;
           const { svg } = await mermaid.render(id, block.code);
-          const wrapper = document.createElement("p");
-          wrapper.className = "md-editor-mermaid";
-          wrapper.setAttribute("data-processed", "");
-          wrapper.setAttribute("data-mermaid-code", block.code);
-          wrapper.innerHTML = svg;
-          block.element.replaceWith(wrapper);
+          if (shouldAbort?.()) return;
+          if (!block.element.isConnected) continue;
+
+          if (block.isRendered) {
+            // 复用旧 wrapper，保留 action div 仅替换 SVG
+            const wrapper = block.element as HTMLElement;
+            const actionDiv = wrapper.querySelector(".md-editor-mermaid-action");
+            wrapper.innerHTML = svg;
+            if (actionDiv) {
+              wrapper.appendChild(actionDiv);
+            }
+          } else {
+            const wrapper = document.createElement("p");
+            wrapper.className = "md-editor-mermaid";
+            wrapper.setAttribute("data-processed", "");
+            wrapper.setAttribute("data-mermaid-code", block.code);
+            wrapper.innerHTML = svg;
+            block.element.replaceWith(wrapper);
+          }
         } catch {
           // 单个图表渲染失败时保留源码
         }
@@ -1525,6 +1568,20 @@ export function PostContent({ content, articleInfo, enableScripts = false }: Pos
     };
   }, []);
 
+  // 原子化的 mermaid 渲染流程：清理旧 zoom → 渲染 SVG → 重新挂载 zoom
+  // generation 用于在多次并发触发时让过期任务静默退出，避免 cleanup 互相覆盖
+  const renderAndInitMermaid = useCallback(async (container: HTMLElement) => {
+    const gen = ++mermaidGenRef.current;
+    if (mermaidCleanupRef.current) {
+      mermaidCleanupRef.current();
+      mermaidCleanupRef.current = null;
+    }
+    await renderMermaidBlocks(container, () => gen !== mermaidGenRef.current);
+    if (gen !== mermaidGenRef.current) return;
+    if (!container.isConnected) return;
+    mermaidCleanupRef.current = initMermaidZoom(container);
+  }, [renderMermaidBlocks, initMermaidZoom]);
+
   // 处理文章内容中的链接、标签插件等
   useEffect(() => {
     if (!contentRef.current) return;
@@ -1611,14 +1668,7 @@ export function PostContent({ content, articleInfo, enableScripts = false }: Pos
     initMusicPlayers(currentContent);
 
     // 渲染 Mermaid 图表并初始化缩放功能
-    if (mermaidCleanupRef.current) {
-      mermaidCleanupRef.current();
-      mermaidCleanupRef.current = null;
-    }
-    renderMermaidBlocks(currentContent).then(() => {
-      if (cancelled) return;
-      mermaidCleanupRef.current = initMermaidZoom(currentContent);
-    });
+    renderAndInitMermaid(currentContent);
 
     // 动态导入 Fancybox 图片查看器
     let fancyboxModule: typeof import("@fancyapps/ui") | null = null;
@@ -1669,9 +1719,26 @@ export function PostContent({ content, articleInfo, enableScripts = false }: Pos
     initMusicPlayers,
     handleMusicPlayerToggle,
     handleMusicPlayerSeek,
-    renderMermaidBlocks,
-    initMermaidZoom,
+    renderAndInitMermaid,
   ]);
+
+  // 主题切换时重新渲染 Mermaid 图表以适配深/浅模式
+  // 通过 next-themes 的 useTheme hook 订阅，避免直接监听 DOM 实现细节
+  useEffect(() => {
+    // 首挂时主渲染 useEffect 已经按当前主题渲染过一次，跳过避免重复
+    if (lastIsDarkRef.current === null) {
+      lastIsDarkRef.current = isDark;
+      return;
+    }
+    if (lastIsDarkRef.current === isDark) return;
+    lastIsDarkRef.current = isDark;
+
+    const container = contentRef.current;
+    if (!container) return;
+    if (!container.querySelector(".md-editor-mermaid[data-mermaid-code]")) return;
+
+    renderAndInitMermaid(container);
+  }, [isDark, renderAndInitMermaid]);
 
   // 浏览器不会执行通过 innerHTML 插入的 <script>，需手动重建节点
   useEffect(() => {

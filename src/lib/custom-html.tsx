@@ -20,6 +20,53 @@ const DANGEROUS_EVENT_ATTR = /^on/i;
 const DANGEROUS_URL_ATTR = new Set(["href", "src", "action", "formaction"]);
 const DANGEROUS_URL_PROTOCOL = /^\s*javascript:/i;
 
+// 跨源脚本/样式必须显式声明 integrity（Subresource Integrity，SRI）才允许加载，
+// 防止 CDN 投毒后被植入恶意代码。同源资源不强制要求 SRI。
+const ABSOLUTE_URL_PROTOCOL = /^(?:https?:)?\/\//i;
+function isExternalUrl(url: string | undefined | null): boolean {
+  if (!url) return false;
+  return ABSOLUTE_URL_PROTOCOL.test(url.trim());
+}
+
+/**
+ * sanitizeHeadElement 对单个 head 标签做安全过滤：
+ *  - 跨源 <script src> 必须带 integrity 才允许保留；
+ *  - 跨源 <link rel="stylesheet"> 同样要求 integrity；
+ *  - 其它 on* / javascript: 由 renderCustomBodyHtml 已处理。
+ * 返回 false 表示该节点应被丢弃。
+ */
+function sanitizeHeadElement(el: DomElement): boolean {
+  const attribs = el.attribs ?? {};
+  if (el.name === "script") {
+    const src = attribs.src;
+    if (isExternalUrl(src)) {
+      if (!attribs.integrity) return false;
+      // 同时要求 crossorigin，否则浏览器无法生效 SRI 校验
+      if (!attribs.crossorigin) {
+        attribs.crossorigin = "anonymous";
+      }
+    }
+  } else if (el.name === "link") {
+    const rel = (attribs.rel ?? "").toLowerCase();
+    if (rel.includes("stylesheet") || rel === "preload" || rel === "modulepreload") {
+      const href = attribs.href;
+      if (isExternalUrl(href)) {
+        if (!attribs.integrity) return false;
+        if (!attribs.crossorigin) {
+          attribs.crossorigin = "anonymous";
+        }
+      }
+    }
+  }
+  // 任何 head 节点都不允许 on* 事件属性
+  for (const k of Object.keys(attribs)) {
+    if (DANGEROUS_EVENT_ATTR.test(k)) {
+      delete attribs[k];
+    }
+  }
+  return true;
+}
+
 const INVALID_OPEN_BRACKET_REGEX = /[‹＜]\s*(?=(?:\/)?[a-zA-Z!])/g;
 
 /**
@@ -47,7 +94,14 @@ export function renderCustomHeadHtml(html: string): ReactNode {
       // 使用 isTag / type 判别，避免 instanceof 与解析器实际节点类不一致（双份 domhandler 时全被丢弃）
       if (isTag(domNode)) {
         const el = domNode as DomElement;
-        return HEAD_ALLOWED_TAGS.has(el.name) ? undefined : <></>;
+        if (!HEAD_ALLOWED_TAGS.has(el.name)) {
+          return <></>;
+        }
+        // 跨源 script/link 强制 SRI；on* 事件属性一律剥离
+        if (!sanitizeHeadElement(el)) {
+          return <></>;
+        }
+        return undefined;
       }
       if (domNode.type === ElementType.Text) {
         const parent = domNode.parent;
@@ -117,8 +171,40 @@ export function extractCustomHeadElements(html: string): HTMLElement[] {
   const template = document.createElement("template");
   template.innerHTML = normalizedHtml;
 
-  return Array.from(template.content.childNodes).filter(
-    (node): node is HTMLElement =>
-      node instanceof HTMLElement && HEAD_ALLOWED_TAGS.has(node.tagName.toLowerCase()),
-  );
+  return Array.from(template.content.childNodes)
+    .filter(
+      (node): node is HTMLElement =>
+        node instanceof HTMLElement && HEAD_ALLOWED_TAGS.has(node.tagName.toLowerCase()),
+    )
+    .filter((el) => {
+      // 与 SSR 渲染保持一致：跨源 script/link 必须带 integrity；
+      // 同时剥离任何 on* 内联事件属性，防止客户端注入路径绕过白名单。
+      const tag = el.tagName.toLowerCase();
+      if (tag === "script") {
+        const src = el.getAttribute("src");
+        if (isExternalUrl(src)) {
+          if (!el.hasAttribute("integrity")) return false;
+          if (!el.hasAttribute("crossorigin")) {
+            el.setAttribute("crossorigin", "anonymous");
+          }
+        }
+      } else if (tag === "link") {
+        const rel = (el.getAttribute("rel") || "").toLowerCase();
+        if (rel.includes("stylesheet") || rel === "preload" || rel === "modulepreload") {
+          const href = el.getAttribute("href");
+          if (isExternalUrl(href)) {
+            if (!el.hasAttribute("integrity")) return false;
+            if (!el.hasAttribute("crossorigin")) {
+              el.setAttribute("crossorigin", "anonymous");
+            }
+          }
+        }
+      }
+      for (const attr of Array.from(el.attributes)) {
+        if (DANGEROUS_EVENT_ATTR.test(attr.name)) {
+          el.removeAttribute(attr.name);
+        }
+      }
+      return true;
+    });
 }

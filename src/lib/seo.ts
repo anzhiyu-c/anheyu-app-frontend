@@ -1,3 +1,4 @@
+import { cache } from "react";
 import type { Metadata } from "next";
 import type { SiteConfigData } from "@/types/site-config";
 
@@ -75,10 +76,16 @@ export function getSeoBackendUrl(): string {
   return process.env.API_URL || process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8091";
 }
 
-export async function fetchSiteConfigForSeo(): Promise<SiteConfigData | null> {
+// 站点配置缓存策略：
+//  - 单次渲染内通过 React `cache()` 去重（generateMetadata 与 RootLayout 都会调用）。
+//  - 跨请求通过 next.revalidate=30 + tag 让 ISR 命中；
+//    admin 写入后端可调 revalidateTag("site-config") 立即失效。
+export const SITE_CONFIG_CACHE_TAG = "site-config";
+
+export const fetchSiteConfigForSeo = cache(async (): Promise<SiteConfigData | null> => {
   try {
     const response = await fetch(`${getSeoBackendUrl()}/api/public/site-config`, {
-      cache: "no-store",
+      next: { revalidate: 30, tags: [SITE_CONFIG_CACHE_TAG] },
     });
 
     if (!response.ok) {
@@ -90,7 +97,7 @@ export async function fetchSiteConfigForSeo(): Promise<SiteConfigData | null> {
   } catch {
     return null;
   }
-}
+});
 
 export function resolveSeoSiteInfo(siteConfig?: SiteConfigData | null): SeoSiteInfo {
   const siteName = siteConfig?.APP_NAME || DEFAULT_SITE_NAME;

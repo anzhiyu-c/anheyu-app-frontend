@@ -43,12 +43,23 @@ const nextConfig: NextConfig = {
     // 默认开启 Next/Image 优化（AVIF/WebP/响应式 srcset），
     // 仅当显式设置 NEXT_DISABLE_IMAGE_OPTIMIZATION=1 时退化为原图直链。
     unoptimized: process.env.NEXT_DISABLE_IMAGE_OPTIMIZATION === "1",
-    remotePatterns: parseRemotePatterns([
-      backendUrl,
-      siteOrigin,
-      process.env.NEXT_PUBLIC_BACKEND_PUBLIC_URL,
-      process.env.NEXT_PUBLIC_CDN_URL,
-    ]),
+    // 关闭 SVG 优化：文章/说说支持粘贴任意外部图片 URL，SVG 内可塞 <script> 形成 XSS。
+    dangerouslyAllowSVG: false,
+    contentDispositionType: "attachment",
+    remotePatterns: [
+      // 已知主机优先匹配（后端 / 站点域 / 自定义 CDN），便于做 host 级安全策略。
+      ...parseRemotePatterns([
+        backendUrl,
+        siteOrigin,
+        process.env.NEXT_PUBLIC_BACKEND_PUBLIC_URL,
+        process.env.NEXT_PUBLIC_CDN_URL,
+      ]),
+      // 通配回退：文章/说说/相册等支持用户粘贴任意外部图片，无法预先枚举 host。
+      // 通过 dangerouslyAllowSVG=false + contentDispositionType=attachment 收敛主要 XSS 面，
+      // 滥用风险靠上游 CDN/WAF 的速率与流量监控兜底。
+      { protocol: "https", hostname: "**" },
+      { protocol: "http", hostname: "**" },
+    ],
   },
   experimental: {
     staleTimes: {

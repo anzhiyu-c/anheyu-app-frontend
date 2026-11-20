@@ -4,13 +4,18 @@
  */
 "use client";
 
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Icon } from "@iconify/react";
 import type { Article } from "@/types/article";
 import { useSiteConfigStore } from "@/store/site-config-store";
 import { apiClient } from "@/lib/api/client";
+import {
+  CaptchaWidget,
+  type CaptchaResult,
+  type CaptchaWidgetRef,
+} from "@/components/auth/CaptchaWidget";
 import { generatePoster, downloadPoster, getPosterCoverImageUrl } from "@/utils/poster-generator";
 import { getUserAvatarUrl } from "@/utils/avatar";
 import { resolvePostDefaultCoverUrl } from "@/utils/same-origin-media-url";
@@ -35,6 +40,9 @@ export function PostCopyright({ article }: PostCopyrightProps) {
   const [isSubscribing, setIsSubscribing] = useState(false);
   const [isSendingCode, setIsSendingCode] = useState(false);
   const [codeCountdown, setCodeCountdown] = useState(0);
+
+  // 人机验证（未开启验证码时组件返回 null）
+  const captchaRef = useRef<CaptchaWidgetRef>(null);
 
   // 倒计时效果
   useEffect(() => {
@@ -288,18 +296,34 @@ export function PostCopyright({ article }: PostCopyrightProps) {
 
     if (isSendingCode || codeCountdown > 0) return;
 
+    // 人机验证：返回 null 表示用户关闭了验证码或验证未通过，终止发送。
+    let captchaParams: CaptchaResult = {};
+    if (captchaRef.current) {
+      const captchaResult = await captchaRef.current.verify();
+      if (captchaResult === null) {
+        setIsSendingCode(false);
+        return;
+      }
+      captchaParams = captchaResult;
+    }
+
     try {
       setIsSendingCode(true);
-      const result = await apiClient.post<null>("/api/public/subscribe/code", { email: subscribeEmail });
+      const result = await apiClient.post<null>("/api/public/subscribe/code", {
+        email: subscribeEmail,
+        ...captchaParams,
+      });
 
       if (result.code === 200) {
         alert("验证码已发送，请查收邮件");
         setCodeCountdown(60);
       } else {
         alert(result.message || "发送验证码失败，请稍后重试");
+        captchaRef.current?.refresh();
       }
     } catch {
       alert("发送验证码失败，请稍后重试");
+      captchaRef.current?.refresh();
     } finally {
       setIsSendingCode(false);
     }
@@ -607,6 +631,9 @@ export function PostCopyright({ article }: PostCopyrightProps) {
                 >
                   {codeCountdown > 0 ? `${codeCountdown}s` : "发送验证码"}
                 </button>
+              </div>
+              <div style={{ margin: "4px 0 12px" }}>
+                <CaptchaWidget ref={captchaRef} />
               </div>
               <div className={styles.subscribeActions}>
                 <button className={styles.subscribeSubmitBtn} disabled={isSubscribing} onClick={handleSubscribe}>

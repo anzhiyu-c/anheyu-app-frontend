@@ -192,12 +192,15 @@ export function useFileNavigation(onFileItemLoadedRef: React.RefObject<((fileIte
 
   const handleSetViewMode = async (mode: "list" | "grid") => {
     if (viewModeRef.current === mode) return;
+    // 先同步更新 ref：syncViewConfig 读取的是 ref，而 useEffect 要等下一次渲染才会回写。
+    viewModeRef.current = mode;
     setViewMode(mode);
     await syncViewConfig();
   };
 
   const handleSetPageSize = async (size: number) => {
     if (pageSizeRef.current === size) return;
+    pageSizeRef.current = size;
     setPageSize(size);
     await syncViewConfig();
     handleRefresh();
@@ -205,6 +208,7 @@ export function useFileNavigation(onFileItemLoadedRef: React.RefObject<((fileIte
 
   const handleSetSortKey = async (key: SortKey) => {
     if (sortKeyRef.current === key) return;
+    sortKeyRef.current = key;
     setSortKey(key);
     await syncViewConfig();
     handleRefresh();
@@ -212,6 +216,7 @@ export function useFileNavigation(onFileItemLoadedRef: React.RefObject<((fileIte
 
   const handleSetColumns = async (cols: ColumnConfig[]) => {
     if (JSON.stringify(columnsRef.current) === JSON.stringify(cols)) return;
+    columnsRef.current = cols;
     setColumns(cols);
     await syncViewConfig();
   };
